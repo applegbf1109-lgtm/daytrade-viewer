@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#161b22">
+<title>DayTrade Review</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --line: #30363d; --text: #e6edf3; --muted: #8b949e;
+    --blue: #58a6ff; --green: #3fb950; --red: #f85149; --yellow: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font-family: -apple-system, "Hiragino Sans", "Segoe UI", sans-serif; font-size: 15px; line-height: 1.6; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+           padding: 10px 16px 0; }
+  header h1 { font-size: 17px; margin: 0; display: flex; justify-content: space-between; align-items: center; }
+  header small { color: var(--muted); font-weight: normal; font-size: 12px; }
+  nav { display: flex; gap: 4px; margin-top: 8px; }
+  nav button { flex: 1; background: none; border: none; color: var(--muted); padding: 8px 0 10px;
+               font-size: 14px; white-space: nowrap; border-bottom: 2px solid transparent; }
+  nav button.on { color: var(--text); border-bottom-color: var(--blue); font-weight: bold; }
+  main { padding: 12px 16px 40px; max-width: 760px; margin: 0 auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+          margin-bottom: 10px; }
+  .tap { cursor: pointer; }
+  .tap:active { border-color: var(--blue); }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .title { font-weight: bold; font-size: 16px; }
+  .head { color: var(--blue); margin-top: 2px; }
+  h2 { font-size: 15px; margin: 18px 0 6px; color: var(--blue); }
+  ul { margin: 4px 0; padding-left: 20px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .tag { display: inline-block; font-size: 12px; padding: 0 6px; border-radius: 4px; margin-right: 6px;
+         border: 1px solid var(--line); }
+  .tag.good { color: var(--green); border-color: var(--green); }
+  .tag.bad { color: var(--red); border-color: var(--red); }
+  .score { font-size: 22px; font-weight: bold; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: normal; font-size: 12px; }
+  .scroll { overflow-x: auto; }
+  .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .kpi .v { font-size: 20px; font-weight: bold; }
+  .back { background: none; border: none; color: var(--blue); font-size: 15px; padding: 4px 0 10px; }
+  select, input, .btn { font-size: 15px; background: var(--bg); color: var(--text); border: 1px solid var(--line);
+                        border-radius: 6px; padding: 8px 10px; }
+  .btn { background: #1f6feb; border-color: #388bfd; color: #fff; }
+  a { color: var(--blue); word-break: break-all; }
+  .pre { white-space: pre-wrap; }
+  .seg { display: flex; gap: 6px; margin-bottom: 10px; }
+  .seg button { flex: 1; background: var(--panel); color: var(--muted); border: 1px solid var(--line);
+                border-radius: 6px; padding: 6px 0; font-size: 13px; }
+  .seg button.on { color: var(--text); border-color: var(--blue); }
+  #login { display: none; }
+  #login input { width: 100%; margin-bottom: 8px; }
+  textarea { width: 100%; min-height: 38vh; font-size: 16px; line-height: 1.6; background: var(--panel);
+             color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 12px; resize: vertical; }
+  textarea:focus { outline: none; border-color: var(--blue); }
+  .memobar { display: flex; justify-content: space-between; align-items: center; margin: 8px 0 4px; gap: 8px; }
+  .memobar .btn { padding: 10px 22px; font-weight: bold; }
+  .btn:disabled { opacity: .5; }
+  .memotext { white-space: pre-wrap; margin: 4px 0; }
+  .ai { border-top: 1px dashed var(--line); margin-top: 8px; padding-top: 6px; font-size: 14px; }
+  .linkbtn { background: none; border: none; color: var(--muted); font-size: 12px; text-decoration: underline; padding: 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📈 DayTrade Review <small id="updated"></small></h1>
+  <nav>
+    <button data-tab="memo" class="on">📝 メモ</button>
+    <button data-tab="stocks">🔍 銘柄</button>
+    <button data-tab="coach">🤖 AIコーチ</button>
+    <button data-tab="stats">🏆 成績</button>
+  </nav>
+</header>
+<main>
+  <div id="login" class="card">
+    <p>PC のアプリに設定したものと同じ <b>GAS の URL</b> と <b>合言葉</b> を入れてください（この端末に記憶されます）</p>
+    <input id="url" type="url" placeholder="https://script.google.com/macros/s/…/exec">
+    <input id="pass" type="password" placeholder="合言葉">
+    <button class="btn" id="go" style="width:100%">開く</button>
+    <p id="loginerr" class="neg"></p>
+  </div>
+  <div id="view"><p class="muted">読み込み中…</p></div>
+</main>
+<script>
+  var DATA = null, TAB = 'memo', STATS_RANGE = 10, SENDING = false;
+  var K_URL = 'dtr_url', K_PASS = 'dtr_pass', K_DRAFT = 'dtr_draft', K_START = 'dtr_started', K_ID = 'dtr_draft_id';
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function para(s) { return s ? '<div class="pre">' + esc(s) + '</div>' : ''; }
+  function list(a) {
+    return a && a.length ? '<ul>' + a.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '';
+  }
+  function sec(title, body) { return body ? '<h2>' + title + '</h2>' + body : ''; }
+  function num(s) { var v = parseFloat(String(s).replace(/,/g, '')); return isFinite(v) ? v : null; }
+  function yen(v) {
+    if (v == null) return '-';
+    return '<span class="' + (v > 0 ? 'pos' : v < 0 ? 'neg' : '') + '">' + (v > 0 ? '+' : '') +
+      Math.round(v).toLocaleString() + '円</span>';
+  }
+  function parse(s) { try { return JSON.parse(s); } catch (e) { return {}; } }
+  function get(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+  function put(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function nowIso() {     // この端末の時刻（日本時間）で YYYY-MM-DDTHH:MM:SS
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' +
+      pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+
+  // ── GAS とのやりとり（text/plain の POST。プリフライトが起きないので GAS でもそのまま受け取れる） ──
+  function api(action, extra) {
+    var body = Object.assign({ action: action, passcode: get(K_PASS) }, extra || {});
+    return fetch(get(K_URL), { method: 'POST', body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.error || 'エラーになりました');
+        return res;
+      });
+  }
+
+  function showLogin(msg) {
+    document.getElementById('login').style.display = 'block';
+    document.getElementById('url').value = get(K_URL);
+    document.getElementById('loginerr').textContent = msg || '';
+  }
+  function load() {
+    if (!get(K_URL) || !get(K_PASS)) { showLogin(''); render(); return; }
+    var list = document.getElementById('memolist');
+    if (list && TAB === 'memo') list.innerHTML = '<p class="muted">読み込み中…</p>';
+    return api('get').then(function (res) {
+      DATA = res.data;
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('updated').textContent = DATA.updated ? '更新 ' + DATA.updated : '';
+      if (TAB === 'memo') renderMemoList(); else render();
+    }).catch(function (err) {
+      showLogin(String(err.message || err));
+      if (TAB === 'memo') renderMemoList(); else document.getElementById('view').innerHTML = '';
+    });
+  }
+  document.getElementById('go').onclick = function () {
+    put(K_URL, document.getElementById('url').value.trim());
+    put(K_PASS, document.getElementById('pass').value.trim());
+    load();
+  };
+  document.querySelectorAll('nav button').forEach(function (b) {
+    b.onclick = function () {
+      TAB = b.dataset.tab;
+      document.querySelectorAll('nav button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      render();
+      window.scrollTo(0, 0);
+    };
+  });
+
+  function render() {
+    var v = document.getElementById('view');
+    if (TAB === 'memo') { v.innerHTML = memoView(); bindMemo(); renderMemoList(); return; }
+    if (!DATA) { v.innerHTML = get(K_URL) ? '<p class="muted">読み込み中…</p>' : ''; return; }
+    if (TAB === 'stocks') v.innerHTML = stockList();
+    else if (TAB === 'coach') v.innerHTML = coachList();
+    else v.innerHTML = statsView();
+    bind();
+  }
+  function bind() {
+    document.querySelectorAll('[data-open]').forEach(function (el) {
+      el.onclick = function () {
+        var p = el.dataset.open.split('|');
+        var v = document.getElementById('view');
+        v.innerHTML = p[0] === 'stock' ? stockDetail(p[1], +p[2] || 0) : coachDetail(p[1]);
+        bind();
+        window.scrollTo(0, 0);
+      };
+    });
+    document.querySelectorAll('[data-back]').forEach(function (el) { el.onclick = render; });
+    document.querySelectorAll('[data-range]').forEach(function (el) {
+      el.onclick = function () { STATS_RANGE = +el.dataset.range; render(); };
+    });
+    var hist = document.getElementById('hist');
+    if (hist) hist.onchange = function () {
+      document.getElementById('view').innerHTML = stockDetail(hist.dataset.code, +hist.value);
+      bind();
+    };
+  }
+
+  // ── メモ ──
+  // 書き始めた時刻 = 空の入力欄に1文字目を入れた時刻（送信した時刻ではない）。下書きと一緒にこの端末に保存する
+  function memoView() {
+    return '<textarea id="memo" placeholder="今の考えを書き留める&#10;例: キオクシア 9:30の押し目でロングしたい。日足の形が良いのでスイングも検討">' +
+      esc(get(K_DRAFT)) + '</textarea>' +
+      '<div class="memobar"><span class="muted" id="started">' + startedLabel(get(K_START)) + '</span>' +
+      '<button class="btn" id="send">送信</button></div>' +
+      '<p class="muted" id="sendmsg"></p>' +
+      '<div class="row"><h2>送ったメモ</h2><button class="linkbtn" id="reload">更新</button></div>' +
+      '<div id="memolist"></div>';
+  }
+  function startedLabel(started) {
+    return started ? '書き始め ' + started.slice(5, 16).replace('-', '/').replace('T', ' ') : '';
+  }
+  function bindMemo() {
+    var ta = document.getElementById('memo');
+    ta.oninput = function () {
+      var text = ta.value;
+      if (!text.trim()) { put(K_START, ''); put(K_ID, ''); }   // 全部消したら、次に書き始めた時刻を取り直す
+      else if (!get(K_START)) put(K_START, nowIso());
+      put(K_DRAFT, text);
+      document.getElementById('started').textContent = startedLabel(get(K_START));
+    };
+    document.getElementById('send').onclick = sendMemo;
+    document.getElementById('reload').onclick = load;
+  }
+  function sendMemo() {
+    var ta = document.getElementById('memo');
+    var text = ta.value.trim();
+    var msg = document.getElementById('sendmsg');
+    if (!text || SENDING) return;
+    if (!get(K_URL) || !get(K_PASS)) { showLogin('先に URL と合言葉を入れてください'); return; }
+    SENDING = true;
+    var btn = document.getElementById('send');
+    btn.disabled = true;
+    msg.textContent = '送信中…';
+    // ID は下書きごとに固定（届いたか分からないまま再送しても二重にならない）
+    var id = get(K_ID) || ('m' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
+    put(K_ID, id);
+    var memo = { id: id, started_at: get(K_START) || nowIso(), sent_at: nowIso(), text: text };
+    api('memo_add', { memo: memo }).then(function () {
+      put(K_DRAFT, ''); put(K_START, ''); put(K_ID, '');
+      ta.value = '';
+      document.getElementById('started').textContent = '';
+      msg.textContent = '✅ 送信しました（PC のアプリが取り込むと AI が分析します）';
+      if (DATA) {
+        (DATA.memos = DATA.memos || []).push({ 'ID': memo.id, '書き始め': memo.started_at, '送信': memo.sent_at, '本文': text });
+        renderMemoList();
+      }
+    }).catch(function (err) {
+      msg.innerHTML = '<span class="neg">送信できませんでした: ' + esc(err.message || err) + '（下書きは残っています）</span>';
+    }).then(function () { SENDING = false; btn.disabled = false; });
+  }
+  function memoAiMap() {
+    var m = {};
+    ((DATA && DATA.memoAnalyses) || []).forEach(function (r) {
+      (parse(r['JSON']).memos || []).forEach(function (x) { m[x.memo_id] = x; });
+    });
+    return m;
+  }
+  function renderMemoList() {
+    var box = document.getElementById('memolist');
+    if (!box) return;
+    if (!DATA) { box.innerHTML = ''; return; }
+    var ai = memoAiMap();
+    var memos = (DATA.memos || []).slice()
+      .sort(function (a, b) { return a['書き始め'] < b['書き始め'] ? 1 : -1; }).slice(0, 40);
+    if (!memos.length) { box.innerHTML = '<p class="muted">まだメモはありません。</p>'; return; }
+    var vcls = { '的中': 'good', '一部的中': 'good', '外れ': 'bad' };
+    box.innerHTML = memos.map(function (m) {
+      var a = ai[m['ID']];
+      var h = '<div class="card"><div class="muted">' + esc(m['書き始め'].slice(5, 16).replace('-', '/').replace('T', ' ')) +
+        ' 書き始め</div><div class="memotext">' + esc(m['本文']) + '</div>';
+      if (a) {
+        h += '<div class="ai"><span class="tag">' + esc(a.kind) + '</span>' +
+          (a.verdict && a.verdict !== '該当なし' ? '<span class="tag ' + (vcls[a.verdict] || '') + '">' + esc(a.verdict) + '</span>' : '') +
+          (a.stocks && a.stocks.length ? '<span class="muted">' + esc(a.stocks.join('、')) + '</span>' : '') +
+          (a.idea ? '<div><b>読み:</b> ' + esc(a.idea) + '</div>' : '') +
+          (a.simulation ? '<div><b>試算:</b> ' + esc(a.simulation) + '</div>' : '') +
+          para(a.feedback) + '</div>';
+      } else {
+        h += '<div class="muted" style="font-size:12px">🤖 PC で取り込まれると、ここに AI の評価が出ます</div>';
+      }
+      return h + '</div>';
+    }).join('');
+  }
+
+  // ── 銘柄 ──
+  function stockGroups() {
+    var g = {};
+    DATA.stocks.forEach(function (r) { (g[r['コード']] = g[r['コード']] || []).push(r); });
+    Object.keys(g).forEach(function (c) {
+      g[c].sort(function (a, b) { return a['分析日時'] < b['分析日時'] ? 1 : -1; });
+    });
+    return g;
+  }
+  function stockList() {
+    var g = stockGroups();
+    var codes = Object.keys(g).sort(function (a, b) { return g[a][0]['分析日時'] < g[b][0]['分析日時'] ? 1 : -1; });
+    if (!codes.length) return '<p class="muted">銘柄分析はまだありません。PC のアプリで分析してアップロードしてください。</p>';
+    return codes.map(function (c) {
+      var r = g[c][0];
+      return '<div class="card tap" data-open="stock|' + esc(c) + '|0">' +
+        '<div class="row"><span class="title">' + esc(c) + ' ' + esc(r['銘柄名']) + '</span>' +
+        '<span class="muted">' + esc(r['分析日時'].slice(5, 16).replace('T', ' ')) + '</span></div>' +
+        '<div class="head">' + esc(r['ひとこと']) + '</div></div>';
+    }).join('');
+  }
+  function stockDetail(code, i) {
+    var rows = stockGroups()[code] || [];
+    var r = rows[i] || rows[0];
+    if (!r) return '';
+    var a = parse(r['JSON']);
+    var h = '<button class="back" data-back>‹ 一覧へ</button>' +
+      '<div class="title">' + esc(code) + ' ' + esc(r['銘柄名']) + '</div>';
+    if (rows.length > 1) {
+      h += '<p><select id="hist" data-code="' + esc(code) + '">' + rows.map(function (x, k) {
+        return '<option value="' + k + '"' + (k === i ? ' selected' : '') + '>' +
+          esc(x['分析日時'].replace('T', ' ')) + (k === 0 ? '（最新）' : '') + '</option>';
+      }).join('') + '</select></p>';
+    } else {
+      h += '<p class="muted">' + esc(r['分析日時'].replace('T', ' ')) + '</p>';
+    }
+    h += '<div class="card"><div class="head">' + esc(a.headline) + '</div>' + para(a.summary) + '</div>';
+    if (a.user_request) h += sec('💬 要望への回答', '<p class="muted">' + esc(a.user_request) + '</p>' + para(a.request_answer));
+    h += sec('前回からの変化', para(a.changes_since_last));
+    if (a.key_levels && a.key_levels.length) {
+      h += sec('意識する価格帯', '<div class="scroll"><table><tr><th>価格</th><th>種類</th><th style="text-align:left">メモ</th></tr>' +
+        a.key_levels.map(function (l) {
+          return '<tr><td>' + Number(l.price).toLocaleString() + '円</td><td>' + esc(l.kind) +
+            '</td><td style="text-align:left;white-space:normal">' + esc(l.note) + '</td></tr>';
+        }).join('') + '</table></div>');
+    }
+    if (a.scenarios && a.scenarios.length) {
+      h += sec('シナリオ', a.scenarios.map(function (s) {
+        return '<div class="card"><b>' + esc(s.name) + '</b><div class="muted">条件: ' + esc(s.condition) +
+          '</div>' + para(s.action) + '</div>';
+      }).join(''));
+    }
+    h += sec('日足', para(a.daily_analysis));
+    h += sec('分足', para(a.intraday_analysis));
+    if (a.news && a.news.length) {
+      h += sec('材料・ニュース', a.news.map(function (n) {
+        var cls = n.impact === '好材料' ? 'good' : n.impact === '悪材料' ? 'bad' : '';
+        return '<div class="card"><span class="tag ' + cls + '">' + esc(n.impact) + '</span>' +
+          '<span class="muted">' + esc(n.date) + '</span><div><b>' + esc(n.title) + '</b></div>' + para(n.summary) +
+          (n.url ? '<a href="' + esc(n.url) + '" target="_blank" rel="noopener">' + esc(n.url) + '</a>' : '') + '</div>';
+      }).join(''));
+    }
+    h += sec('セクター・関連銘柄', para(a.sector));
+    h += sec('地合い', para(a.market));
+    h += sec('自分の売買', para(a.my_trading));
+    h += sec('注意点', list(a.risks));
+    return h;
+  }
+
+  // ── AIコーチ ──
+  function coachList() {
+    if (!DATA.coach.length) return '<p class="muted">AIコーチの日次分析はまだありません。</p>';
+    return DATA.coach.map(function (r) {
+      return '<div class="card tap" data-open="coach|' + esc(r['日付']) + '">' +
+        '<div class="row"><span class="title">' + esc(r['日付']) + '</span>' +
+        '<span class="score">' + esc(r['点数']) + '<small class="muted">点</small></span></div>' +
+        '<div class="muted">' + esc(r['総評']).slice(0, 90) + '…</div></div>';
+    }).join('');
+  }
+  function coachDetail(date) {
+    var r = DATA.coach.filter(function (x) { return x['日付'] === date; })[0];
+    if (!r) return '';
+    var a = parse(r['JSON']);
+    var st = DATA.stats.filter(function (x) { return x['日付'] === date; })[0];
+    var h = '<button class="back" data-back>‹ 一覧へ</button>' +
+      '<div class="row"><span class="title">' + esc(date) + '</span><span class="score">' + esc(a.score) + '点</span></div>';
+    if (st) h += '<p>損益 ' + yen(num(st['損益'])) + '　' + esc(st['取引数']) + '回　勝率 ' + esc(st['勝率'] || '-') + '%</p>';
+    h += '<div class="card">' + para(a.summary) + '</div>';
+    h += sec('👍 良かった点', list(a.good_points));
+    h += sec('🔧 改善点', list(a.improvements));
+    if (a.rule_checks && a.rule_checks.length) {
+      var label = { kept: ['守れた', 'good'], broken: ['破った', 'bad'], na: ['対象外', ''] };
+      h += sec('📋 ルール判定', a.rule_checks.map(function (c) {
+        var l = label[c.status] || [c.status, ''];
+        return '<div class="card"><span class="tag ' + l[1] + '">' + l[0] + '</span>' +
+          '<b>' + esc(c.rule_text || ('ルール id=' + c.rule_id)) + '</b>' + para(c.reason) + '</div>';
+      }).join(''));
+    }
+    h += sec('⚠ 気になった点', list(a.anomalies));
+    h += sec('➡ 次にやること', list(a.next_actions));
+    h += sec('持ち越し', para(a.swing_review));
+    return h;
+  }
+
+  // ── 成績 ──
+  function statsView() {
+    var all = DATA.stats.slice().sort(function (a, b) { return a['日付'] < b['日付'] ? 1 : -1; });
+    if (!all.length) return '<p class="muted">成績データはまだありません。</p>';
+    var rows = STATS_RANGE ? all.slice(0, STATS_RANGE) : all;
+    var pnl = 0, n = 0, w = 0, l = 0, swing = 0;
+    rows.forEach(function (r) {
+      var p = num(r['損益']) || 0;
+      pnl += p; n += num(r['取引数']) || 0; w += num(r['勝ち']) || 0; l += num(r['負け']) || 0;
+      swing += num(r['持ち越し損益']) || 0;
+    });
+    var h = '<div class="seg">' + [[10, '直近10日'], [20, '直近20日'], [60, '直近60日'], [0, '全期間']].map(function (o) {
+      return '<button data-range="' + o[0] + '"' + (STATS_RANGE === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>';
+    }).join('') + '</div>';
+    h += '<div class="kpis">' +
+      kpi('デイトレ損益', yen(pnl)) +
+      kpi('勝率', (w + l ? (w / (w + l) * 100).toFixed(1) : '-') + '%') +
+      kpi('取引数', n + '回（' + rows.length + '日）') +
+      kpi('持ち越し損益', yen(swing)) + '</div>';
+    h += sec('日別損益', chart(rows.slice().reverse()));
+    h += '<div class="scroll"><table><tr><th>日付</th><th>損益</th><th>回数</th><th>勝率</th><th>PF</th><th>保有分</th><th>遵守率</th></tr>' +
+      rows.map(function (r) {
+        return '<tr><td>' + esc(r['日付'].slice(5)) + '</td><td>' + yen(num(r['損益'])) + '</td><td>' + esc(r['取引数']) +
+          '</td><td>' + esc(r['勝率'] || '-') + '</td><td>' + esc(r['PF'] || '-') + '</td><td>' + esc(r['平均保有分'] || '-') +
+          '</td><td>' + (r['ルール遵守率'] ? esc(r['ルール遵守率']) + '%' : '-') + '</td></tr>';
+      }).join('') + '</table></div>';
+    return h;
+  }
+  function kpi(label, value) {
+    return '<div class="card kpi"><div class="muted">' + label + '</div><div class="v">' + value + '</div></div>';
+  }
+  function chart(rows) {
+    // 日別損益の棒グラフ＋累計の線（inline SVG）
+    var W = 340, H = 160, pad = 6;
+    var vals = rows.map(function (r) { return num(r['損益']) || 0; });
+    var cum = [], c = 0;
+    vals.forEach(function (v) { c += v; cum.push(c); });
+    var lo = Math.min(0, Math.min.apply(null, vals), Math.min.apply(null, cum));
+    var hi = Math.max(0, Math.max.apply(null, vals), Math.max.apply(null, cum));
+    if (hi === lo) hi = lo + 1;
+    var y = function (v) { return pad + (hi - v) / (hi - lo) * (H - pad * 2); };
+    var bw = (W - pad * 2) / vals.length;
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" style="display:block">';
+    s += '<line x1="0" x2="' + W + '" y1="' + y(0) + '" y2="' + y(0) + '" stroke="#30363d"/>';
+    vals.forEach(function (v, i) {
+      var top = Math.min(y(v), y(0)), hgt = Math.max(1, Math.abs(y(v) - y(0)));
+      s += '<rect x="' + (pad + i * bw + bw * 0.15) + '" y="' + top + '" width="' + (bw * 0.7) + '" height="' + hgt +
+        '" fill="' + (v >= 0 ? '#3fb950' : '#f85149') + '" opacity="0.8"/>';
+    });
+    s += '<polyline fill="none" stroke="#58a6ff" stroke-width="2" points="' + cum.map(function (v, i) {
+      return (pad + i * bw + bw / 2) + ',' + y(v);
+    }).join(' ') + '"/></svg>';
+    return '<div class="card">' + s + '<div class="muted">棒: 日別損益　線: 累計</div></div>';
+  }
+
+  render();
+  load();
+</script>
+</body>
+</html>
