@@ -17,8 +17,8 @@
            padding: 10px 16px 0; }
   header h1 { font-size: 17px; margin: 0; display: flex; justify-content: space-between; align-items: center; }
   header small { color: var(--muted); font-weight: normal; font-size: 12px; }
-  nav { display: flex; gap: 4px; margin-top: 8px; }
-  nav button { flex: 1; background: none; border: none; color: var(--muted); padding: 8px 0 10px;
+  nav { display: flex; gap: 2px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; }
+  nav button { flex: 1 0 auto; background: none; border: none; color: var(--muted); padding: 8px 4px 10px;
                font-size: 14px; white-space: nowrap; border-bottom: 2px solid transparent; }
   nav button.on { color: var(--text); border-bottom-color: var(--blue); font-weight: bold; }
   main { padding: 12px 16px 40px; max-width: 760px; margin: 0 auto; }
@@ -65,6 +65,8 @@
   .btn:disabled { opacity: .5; }
   .memotext { white-space: pre-wrap; margin: 4px 0; }
   .ai { border-top: 1px dashed var(--line); margin-top: 8px; padding-top: 6px; font-size: 14px; }
+  .tag.flat { color: var(--muted); }
+  h3 { font-size: 14px; margin: 12px 0 2px; }
   .linkbtn { background: none; border: none; color: var(--muted); font-size: 12px; text-decoration: underline; padding: 0; }
 </style>
 </head>
@@ -73,6 +75,7 @@
   <h1>📈 DayTrade Review <small id="updated"></small></h1>
   <nav>
     <button data-tab="memo" class="on">📝 メモ</button>
+    <button data-tab="market">📊 市況</button>
     <button data-tab="stocks">🔍 銘柄</button>
     <button data-tab="coach">🤖 AIコーチ</button>
     <button data-tab="stats">🏆 成績</button>
@@ -89,7 +92,7 @@
   <div id="view"><p class="muted">読み込み中…</p></div>
 </main>
 <script>
-  var DATA = null, TAB = 'memo', STATS_RANGE = 10, SENDING = false;
+  var DATA = null, TAB = 'memo', STATS_RANGE = 10, SENDING = false, MKT = '';
   var K_URL = 'dtr_url', K_PASS = 'dtr_pass', K_DRAFT = 'dtr_draft', K_START = 'dtr_started', K_ID = 'dtr_draft_id';
 
   function esc(s) {
@@ -166,7 +169,8 @@
     var v = document.getElementById('view');
     if (TAB === 'memo') { v.innerHTML = memoView(); bindMemo(); renderMemoList(); return; }
     if (!DATA) { v.innerHTML = get(K_URL) ? '<p class="muted">読み込み中…</p>' : ''; return; }
-    if (TAB === 'stocks') v.innerHTML = stockList();
+    if (TAB === 'market') v.innerHTML = marketList();
+    else if (TAB === 'stocks') v.innerHTML = stockList();
     else if (TAB === 'coach') v.innerHTML = coachList();
     else v.innerHTML = statsView();
     bind();
@@ -176,12 +180,16 @@
       el.onclick = function () {
         var p = el.dataset.open.split('|');
         var v = document.getElementById('view');
-        v.innerHTML = p[0] === 'stock' ? stockDetail(p[1], +p[2] || 0) : coachDetail(p[1]);
+        v.innerHTML = p[0] === 'stock' ? stockDetail(p[1], +p[2] || 0) :
+          p[0] === 'market' ? marketDetail(p[1] + '|' + p[2]) : coachDetail(p[1]);
         bind();
         window.scrollTo(0, 0);
       };
     });
     document.querySelectorAll('[data-back]').forEach(function (el) { el.onclick = render; });
+    document.querySelectorAll('[data-mkt]').forEach(function (el) {
+      el.onclick = function () { MKT = el.dataset.mkt; render(); };
+    });
     document.querySelectorAll('[data-range]').forEach(function (el) {
       el.onclick = function () { STATS_RANGE = +el.dataset.range; render(); };
     });
@@ -277,6 +285,134 @@
       }
       return h + '</div>';
     }).join('');
+  }
+
+  // ── 市況（MarketDashboard が送ってくる日次レポート） ──
+  var FLAG = { JP: '🇯🇵 日本', US: '🇺🇸 米国' };
+  var WD = '日月火水木金土';
+  function toneCls(t) { return /強気/.test(t || '') ? 'good' : /弱気/.test(t || '') ? 'bad' : 'flat'; }
+  function dayLabel(d) {
+    var x = new Date(d + 'T00:00:00');
+    return isNaN(x) ? d : (x.getMonth() + 1) + '/' + x.getDate() + '（' + WD[x.getDay()] + '）';
+  }
+  function pct(v) {
+    if (v == null || v === '') return '-';
+    v = +v;
+    return '<span class="' + (v > 0 ? 'pos' : v < 0 ? 'neg' : '') + '">' + (v > 0 ? '+' : '') + v.toFixed(2) + '%</span>';
+  }
+  function price(v) { return v == null ? '-' : Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }); }
+  function marketRows() {
+    return (DATA.market || []).slice().sort(function (a, b) { return a['キー'] < b['キー'] ? 1 : -1; });
+  }
+  function marketList() {
+    var rows = marketRows();
+    if (!rows.length) return '<p class="muted">市況レポートはまだありません。MarketDashboard の定時実行（米国 8:15・日本 17:30）で届きます。</p>';
+    var h = '<div class="seg">' + [['', 'すべて'], ['JP', FLAG.JP], ['US', FLAG.US]].map(function (o) {
+      return '<button data-mkt="' + o[0] + '"' + (MKT === o[0] ? ' class="on"' : '') + '>' + o[1] + '</button>';
+    }).join('') + '</div>';
+    return h + rows.filter(function (r) { return !MKT || r['市場'] === MKT; }).slice(0, 40).map(function (r) {
+      return '<div class="card tap" data-open="market|' + esc(r['キー']) + '">' +
+        '<div class="row"><span class="title">' + esc(FLAG[r['市場']] || r['市場']) + '　' + esc(dayLabel(r['日付'])) + '</span>' +
+        '<span class="tag ' + toneCls(r['地合い']) + '">' + esc(r['地合い']) + '</span></div>' +
+        '<div class="head">' + esc(r['ひとこと'] || '（AI レポートなし）') + '</div></div>';
+    }).join('');
+  }
+  function stockName(code, name) {
+    // 日本株（4桁 / 英数4桁）は株探へリンク
+    var label = esc(code) + ' ' + esc(name || '');
+    return /^[0-9][0-9A-Z]{3}$/.test(code || '') ?
+      '<a href="https://kabutan.jp/stock/?code=' + esc(code) + '" target="_blank" rel="noopener">' + label + '</a>' : label;
+  }
+  function table(head, rows) {
+    return rows.length ? '<div class="scroll"><table><tr>' + head.map(function (x) { return '<th>' + x + '</th>'; }).join('') +
+      '</tr>' + rows.map(function (r) { return '<tr>' + r.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }).join('') +
+      '</table></div>' : '';
+  }
+  function moverTable(items) {
+    return table(['銘柄', '終値', '前日比', ''], (items || []).map(function (m) {
+      var mark = [m.s_high ? 'S高' : '', m.s_low ? 'S安' : '', m.new_high_streak ? '新高値' + m.new_high_streak + '日' : '',
+                  m.surge5 != null && m.surge5 >= 20 ? '5日+' + m.surge5.toFixed(0) + '%' : ''].filter(Boolean).join(' ');
+      return [stockName(m.code, m.name), price(m.last), pct(m.chg), '<span class="muted">' + esc(mark) + '</span>'];
+    }));
+  }
+  function rankTable(items) {
+    return table(['名前', '前日比'], (items || []).map(function (x) { return [esc(x.name), pct(x.chg)]; }));
+  }
+  function tileTable(items) {
+    return table(['銘柄', '終値', '前日比', '形'], (items || []).map(function (x) {
+      return [esc(x.name) + ' <span class="muted">' + esc(x.ticker) + '</span>', price(x.last), pct(x.chg),
+              '<span class="muted">' + esc(x.trend || '') + '</span>'];
+    }));
+  }
+  function themes(a, cls) {
+    return (a || []).map(function (t) {
+      return '<div><span class="tag ' + cls + '">' + esc(t.name) + '</span>' + esc(t.comment) + '</div>';
+    }).join('');
+  }
+  function marketDetail(key) {
+    var r = marketRows().filter(function (x) { return x['キー'] === key; })[0];
+    if (!r) return '';
+    var j = parse(r['JSON']), d = j.digest || {}, a = j.ai, us = r['市場'] === 'US';
+    var h = '<button class="back" data-back>‹ 一覧へ</button>' +
+      '<div class="row"><span class="title">' + esc(FLAG[r['市場']] || r['市場']) + '　' + esc(dayLabel(r['日付'])) + '</span>' +
+      '<span class="muted">' + esc(r['生成日時']) + '</span></div>' +
+      '<p>地合い <b>' + esc(d.bias || '-') + '</b>（主要指数平均 ' + pct(d.bias_avg) + '）' +
+      (d.breadth ? '　上昇比率 ' + esc(d.breadth.adv_ratio) + '%' : '') + '</p>';
+    if (a) {
+      h += '<div class="card"><span class="tag ' + toneCls(a.tone) + '">' + esc(a.tone) + '</span>' +
+        '<div class="head" style="font-weight:bold">' + esc(a.headline) + '</div>' + para(a.summary) + '</div>';
+      h += sec(us ? '➡ 今日の日本市場へ' : '➡ 翌営業日に向けて', '<div class="card">' + para(a.outlook) + list(a.focus) + '</div>');
+      h += sec('前回からの変化', para(a.changes));
+      h += sec('相場を動かした要因', list(a.drivers));
+      h += sec('強かったテーマ', themes(a.strong_themes, 'good'));
+      h += sec('弱かったテーマ', themes(a.weak_themes, 'bad'));
+      h += sec(d.watchlist ? '★ ウォッチリスト' : 'テーマ別', (a.watchlist_review || []).map(function (w) {
+        return '<div class="card"><b>' + esc(w.category) + '</b>' + para(w.comment) +
+          (w.notable && w.notable.length ? '<div class="muted">' + esc(w.notable.join(' ／ ')) + '</div>' : '') + '</div>';
+      }).join(''));
+      h += sec('目立った銘柄', (a.notable_stocks || []).map(function (s) {
+        return '<div class="card"><b>' + stockName(s.ticker, s.name) + '</b>' + para(s.comment) + '</div>';
+      }).join(''));
+      h += sec('⚠ 注意点', list(a.risks));
+    } else {
+      h += '<p class="muted">この日の AI レポートはありません（数値のみ）。</p>';
+    }
+    h += '<h2 style="margin-top:28px">📈 数値</h2>';
+    h += '<h3>主要指数</h3>' + tileTable(d.indices);
+    if (d.watchlist) {
+      Object.keys(d.watchlist).forEach(function (cat) { h += '<h3>★ ' + esc(cat) + '</h3>' + tileTable(d.watchlist[cat]); });
+    }
+    if (d.breadth) {
+      var b = d.breadth;
+      h += '<h3>マーケット・ブレッド</h3><p>上昇 ' + esc(b.advancers) + ' / 下落 ' + esc(b.decliners) +
+        '（上昇比率 ' + esc(b.adv_ratio) + '%・平均 ' + pct(b.avg_chg) + '）<br>新高値 ' + esc(b.new_high) + ' / 新安値 ' + esc(b.new_low) + '</p>';
+    }
+    h += d.sectors && d.sectors.length ? '<h3>セクター</h3>' + rankTable(d.sectors) : '';
+    h += d.subgroups && d.subgroups.length ? '<h3>テーマ</h3>' + rankTable(d.subgroups) : '';
+    if (d.factors && d.factors.length) {
+      h += '<h3>ファクター</h3>' + table(['ファクター', '優位', '差'], d.factors.map(function (f) {
+        return [esc(f.name), esc(f.winner), pct(f.spread)];
+      }));
+    }
+    if (d.contribution) {
+      h += '<h3>寄与 上位</h3>' + rankTable(d.contribution.gainers) + '<h3>寄与 下位</h3>' + rankTable(d.contribution.losers);
+    }
+    var sc = d.scan;
+    if (sc) {
+      var c = sc.counts || {};
+      h += '<h3>市場スキャン（プライム ' + esc(sc.total) + '銘柄）</h3><p class="muted">新高値 ' + esc(c.new_highs) +
+        '・5日高騰 ' + esc(c.surges) + '・S高 ' + esc(c.s_highs) + '・S安 ' + esc(c.s_lows) + '</p>';
+      h += '<h3>値上がり率</h3>' + moverTable(sc.gainers) + '<h3>値下がり率</h3>' + moverTable(sc.losers);
+      h += sc.new_highs && sc.new_highs.length ? '<h3>新高値（連続更新の長い順）</h3>' + moverTable(sc.new_highs) : '';
+      h += sc.surges && sc.surges.length ? '<h3>5日高騰</h3>' + moverTable(sc.surges) : '';
+      h += sc.s_highs && sc.s_highs.length ? '<h3>S高</h3>' + moverTable(sc.s_highs) : '';
+    }
+    if (d.sector_drill && d.sector_drill.length) {
+      h += '<h3>業種（プライム平均）</h3>' + table(['業種', '平均', '上昇/下落'], d.sector_drill.map(function (s) {
+        return [esc(s.sector), pct(s.avg_chg), '<span class="muted">' + esc(s.up) + '/' + esc(s.down) + '</span>'];
+      }));
+    }
+    return h;
   }
 
   // ── 銘柄 ──
